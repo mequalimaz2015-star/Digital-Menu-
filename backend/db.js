@@ -2,10 +2,10 @@ const sql = require('mssql')
 require('dotenv').config()
 
 const config = {
-  server: process.env.DB_SERVER || 'MARK\\SQLEXPRESS01',
-  database: process.env.DB_NAME || 'RestaurantDB',
-  user: process.env.DB_USER || 'menuapp',
-  password: process.env.DB_PASS || 'MenuApp2024!',
+  server: process.env.DATABASE_URL || mysql://admin_digtal_menu:01xaMxar2j6Cn7Gd2PJAFLX:SE.5Ye__@digtal-menu.db-836.svc.cluster.local:3306/digtal_menu',
+  database: process.env.DB_NAME || 'digtal_menu',
+  user: process.env.DB_USER || 'admin_digtal_menu',
+  password: process.env.DB_PASSWORD || '01xaMxar2j6Cn7Gd2PJAFLX:SE.5Ye__',
   options: {
     trustServerCertificate: true,
     encrypt: false,
