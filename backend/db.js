@@ -1,46 +1,51 @@
-const mysql = require('mysql2/promise')
+const { Pool } = require('pg')
 require('dotenv').config()
 
-// Create a connection pool using environment variables with fallbacks
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || process.env.MYSQL_HOST || 'digtal-menu.db-836.svc.cluster.local',
-  port: process.env.DB_PORT || process.env.MYSQL_PORT || 3306,
-  user: process.env.DB_USER || process.env.DB_USERNAME || process.env.MYSQL_USER || 'admin_digtal_menu',
-  password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || '01xaMxar2j6Cn7Gd2PJAFLX:SE.5Ye__',
-  database: process.env.DB_NAME || process.env.DB_DATABASE || process.env.MYSQL_DATABASE || 'digtal_menu',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-})
+const hasDb = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '')
 
-/**
- * Execute a SQL query with parameter binding.
- * @param {string} sqlText - The SQL query string (use ? for placeholders).
- * @param {Array} params - Array of parameter values to insert into placeholders.
- */
-async function query(sqlText, params = []) {
+const pool = hasDb ? new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL.includes('localhost')
+    ? false
+    : { rejectUnauthorized: false },
+  connectionTimeoutMillis: 3000,
+  idleTimeoutMillis: 30000,
+  max: 10,
+}) : null
+
+if (pool) {
+  pool.on('error', (err) => {
+    console.error('❌ Pool error:', err.message)
+  })
+
+  // Test connection on startup
+  pool.query('SELECT 1').then(() => {
+    console.log('✅ Connected to PostgreSQL')
+  }).catch(err => {
+    console.error('❌ DB connection failed:', err.message)
+  })
+} else {
+  console.log('ℹ️ No DATABASE_URL set. Running in resilient localStore (JSON) mode.')
+}
+
+// query(sqlText, valuesArray)
+async function query(text, values = []) {
+  if (!pool) {
+    throw new Error('DATABASE_URL not configured')
+  }
   try {
-    const [rows, fields] = await pool.query(sqlText, params)
-    return rows
+    const res = await pool.query(text, values)
+    res.recordset = res.rows
+    return res
   } catch (err) {
-    console.error('❌ DB Error:', err.message)
+    console.error('❌ DB query error:', err.message)
     throw err
   }
 }
 
-/**
- * Helper to get pool connection status or raw connection.
- */
 async function getPool() {
-  try {
-    const connection = await pool.getConnection()
-    console.log('✅ Connected to MySQL Database')
-    connection.release()
-    return pool
-  } catch (err) {
-    console.error('❌ DB Connection Error:', err.message)
-    throw err
-  }
+  return pool
 }
 
 module.exports = { query, getPool, pool }
+
